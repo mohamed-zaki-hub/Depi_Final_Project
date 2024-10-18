@@ -1,0 +1,70 @@
+---
+- name: Update and Upgrade Packages
+  hosts: ec2
+  become: yes
+  tasks:
+    - name: Updating
+      apt:
+        update_cache: yes
+        upgrade: dist
+
+- name: Install openjdk-17 on both master and agent
+  hosts: ec2
+  become: yes
+  tasks:
+    - name: Install openjdk-17 JRE
+      apt:
+        name: openjdk-17-jre
+        state: present 
+
+- name: Install Jenkins on jenkins-master
+  hosts: jenkins_master
+  become: yes
+  tasks:
+    - name: Add Jenkins repository key
+      get_url:
+        url: https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+        dest: /usr/share/keyrings/jenkins-keyring.asc
+    - name: Add Jenkins repository
+      apt_repository:
+        repo: 'deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/'
+        state: present
+        filename: jenkins.list
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+    - name: Install Jenkins
+      apt:
+        name: jenkins
+        state: present
+    - name: Starting Jenkins
+      systemd:
+        name: jenkins
+        state: started
+        enabled: yes 
+
+- name: Install Docker and start it on jenkins-agent
+  hosts: jenkins_agent
+  become: yes
+  tasks:
+    - name: Install Docker
+      apt:
+        name: docker.io
+        update_cache: yes
+        state: present
+
+    - name: Start Docker service
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add ubuntu to docker group
+      user:
+        name: ubuntu
+        groups: docker
+        append: yes
+
+    - name: Restart connection to apply group membership
+      meta: reset_connection
+                  
