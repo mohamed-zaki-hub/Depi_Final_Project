@@ -52,6 +52,11 @@
         name: docker.io
         update_cache: yes
         state: present
+    - name: Install docker-compose
+      apt:
+        name: docker-compose
+        update_cache: yes
+        state: present
 
     - name: Start Docker service
       systemd:
