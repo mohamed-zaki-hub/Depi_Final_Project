@@ -4,6 +4,7 @@
 PRIVATE_KEY_PATH="~/desktop/keys/labsuser.pem"
 
 # Apply Terraform configuration
+terraform init
 terraform apply -auto-approve
 
 # Extract the public IPs
