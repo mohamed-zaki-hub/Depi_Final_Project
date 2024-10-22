@@ -1,0 +1,142 @@
+  ---
+- name: Install and configure SonarQube
+  hosts: your_target_host
+  become: true
+  tasks:
+
+    - name: Update apt repository
+      apt:
+        update_cache: yes
+
+    - name: Upgrade all packages
+      apt:
+        upgrade: dist
+
+    - name: Add PostgreSQL repository
+      apt_repository:
+        repo: "deb http://apt.postgresql.org/pub/repos/apt {{ ansible_lsb.codename }}-pgdg main"
+        state: present
+
+    - name: Add PostgreSQL GPG key
+      apt_key:
+        url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+        state: present
+
+    - name: Install PostgreSQL
+      apt:
+        name:
+          - postgresql
+          - postgresql-contrib
+        state: present
+
+    - name: Enable PostgreSQL service
+      systemd:
+        name: postgresql
+        enabled: yes
+        state: started
+
+    - name: Create SonarQube database user
+      become_user: postgres
+      postgresql_user:
+        name: sonar
+        password: sonar
+        role_attr_flags: LOGIN
+
+    - name: Create SonarQube database
+      become_user: postgres
+      postgresql_db:
+        name: sonarqube
+        owner: sonar
+        encoding: UTF8
+        template: template0
+
+    - name: Grant privileges on SonarQube database
+      become_user: postgres
+      postgresql_privs:
+        database: sonarqube
+        role: sonar
+        privs: ALL
+
+    - name: Add Adoptium repository
+      apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/adoptium.asc] https://packages.adoptium.net/artifactory/deb {{ ansible_lsb.codename }} main"
+        state: present
+      register: adoptium_repo
+
+    - name: Add Adoptium GPG key
+      apt_key:
+        url: https://packages.adoptium.net/artifactory/api/gpg/key/public
+        state: present
+
+    - name: Install Java 17
+      apt:
+        name: temurin-17-jdk
+        state: present
+
+    - name: Set Java alternatives
+      command: /usr/bin/update-alternatives --config java
+
+    - name: Increase limits for SonarQube
+      lineinfile:
+        path: /etc/security/limits.conf
+        line: "sonarqube   -   nofile   65536"
+        state: present
+
+    - name: Increase mapped memory regions
+      lineinfile:
+        path: /etc/sysctl.conf
+        line: "vm.max_map_count = 262144"
+        state: present
+
+    - name: Download SonarQube
+      get_url:
+        url: https://binaries.sonarsource.com/Distribution/sonarqube/sonarqube-9.9.0.65466.zip
+        dest: /tmp/sonarqube.zip
+
+    - name: Install unzip
+      apt:
+        name: unzip
+        state: present
+
+    - name: Unzip SonarQube
+      unarchive:
+        src: /tmp/sonarqube.zip
+        dest: /opt
+        remote_src: yes
+
+    - name: Move SonarQube directory
+      command: mv /opt/sonarqube-9.9.0.65466 /opt/sonarqube
+
+    - name: Create sonar group
+      group:
+        name: sonar
+        state: present
+
+    - name: Create sonar user
+      user:
+        name: sonar
+        comment: "user to run SonarQube"
+        home: /opt/sonarqube
+        shell: /bin/bash
+        group: sonar
+        create_home: yes
+
+    - name: Set ownership of SonarQube directory
+      file:
+        path: /opt/sonarqube
+        owner: sonar
+        group: sonar
+        recurse: yes
+
+    - name: Update SonarQube properties
+      lineinfile:
+        path: /opt/sonarqube/conf/sonar.properties
+        line: "sonar.jdbc.url=jdbc:postgresql://localhost:5432/sonarqube"
+        state: present
+      notify: Restart SonarQube
+
+  handlers:
+    - name: Restart SonarQube
+      systemd:
+        name: sonarqube
+        state: restarted
