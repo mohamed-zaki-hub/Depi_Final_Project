@@ -56,18 +56,21 @@ pipeline {
             }
         }
 
-        stage("Build & Push Docker Image") {
+ stage("Build & Push Docker Image") {
             steps {
                 script {
-                    docker.withRegistry('https://index.docker.io/v1/', 'DOCKER_CREDENTIALS_ID') { // Add your Docker registry URL
-                        def dockerImage = docker.build("${IMAGE_NAME}")
-                        dockerImage.push("${IMAGE_TAG}")
-                        dockerImage.push('latest')
+                    docker.withRegistry('',DOCKER_PASS) {
+                        docker_image = docker.build "${IMAGE_NAME}"
+                    }
+
+                    docker.withRegistry('',DOCKER_PASS) {
+                        docker_image.push("${IMAGE_TAG}")
+                        docker_image.push('latest')
                     }
                 }
             }
-        }
 
+       }
         stage("Trivy Scan") {
             steps {
                 script {
