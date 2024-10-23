@@ -1,26 +1,25 @@
-  ---
+---
 - name: Install and configure SonarQube
-  hosts: your_target_host
+  hosts: ec2
   become: true
   tasks:
-
-    - name: Update apt repository
-      apt:
-        update_cache: yes
 
     - name: Upgrade all packages
       apt:
         upgrade: dist
 
-    - name: Add PostgreSQL repository
-      apt_repository:
-        repo: "deb http://apt.postgresql.org/pub/repos/apt {{ ansible_lsb.codename }}-pgdg main"
-        state: present
+    - name: Add PostgreSQL repository using shell command
+      command: sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+
 
     - name: Add PostgreSQL GPG key
       apt_key:
         url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
         state: present
+
+    - name: Update apt repository cache
+      apt:
+        update_cache: yes
 
     - name: Install PostgreSQL
       apt:
@@ -34,29 +33,7 @@
         name: postgresql
         enabled: yes
         state: started
-
-    - name: Create SonarQube database user
-      become_user: postgres
-      postgresql_user:
-        name: sonar
-        password: sonar
-        role_attr_flags: LOGIN
-
-    - name: Create SonarQube database
-      become_user: postgres
-      postgresql_db:
-        name: sonarqube
-        owner: sonar
-        encoding: UTF8
-        template: template0
-
-    - name: Grant privileges on SonarQube database
-      become_user: postgres
-      postgresql_privs:
-        database: sonarqube
-        role: sonar
-        privs: ALL
-
+    
     - name: Add Adoptium repository
       apt_repository:
         repo: "deb [signed-by=/etc/apt/keyrings/adoptium.asc] https://packages.adoptium.net/artifactory/deb {{ ansible_lsb.codename }} main"
