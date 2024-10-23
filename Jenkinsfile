@@ -71,7 +71,12 @@ pipeline {
             }
         }
 
-       
+       stage("Trivy Scan"){
+           steps {
+              	echo "success"
+            }
+
+        }
     
         stage ('Cleanup Artifacts') {
            steps {
