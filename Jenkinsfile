@@ -68,6 +68,8 @@ pipeline {
                     }
                 }
             }
+        }
+
         stage("Trivy Scan") {
            steps {
                script {
@@ -75,7 +77,8 @@ pipeline {
                }
            }
        }
-           stage ('Cleanup Artifacts') {
+        
+        stage ('Cleanup Artifacts') {
            steps {
                script {
                     sh "docker rmi ${IMAGE_NAME}:${IMAGE_TAG}"
